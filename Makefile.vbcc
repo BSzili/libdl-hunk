@@ -1,0 +1,33 @@
+CC = vc
+CAT = cat
+RM = rm -f
+
+DEBUG = 0
+LIBRARY = dl.lib
+
+CFLAGS = -cpu=68000 -I.
+LDFLAGS = -g -L. -ldl -lamiga
+
+ifneq ($(DEBUG), 0)
+CFLAGS += -g -DDEBUG
+else
+CFLAGS += -size
+endif
+
+LIB_OBJ = \
+	main.o \
+	dlfcn.o
+
+all: $(LIBRARY) testlib.so testprog
+
+$(LIBRARY): $(LIB_OBJ)
+	$(CAT) $? > $@
+
+testlib.so: testlib.o $(LIBRARY)
+	$(CC) -o $@ $< $(LDFLAGS)
+
+testprog: testprog.o $(LIBRARY)
+	$(CC) -o $@ $< $(LDFLAGS)
+
+clean:
+	$(RM) $(LIBRARY) $(LIB_OBJ) testlib.so testlib.o testprog testprog.o

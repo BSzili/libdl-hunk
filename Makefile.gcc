@@ -1,0 +1,34 @@
+CC = m68k-amigaos-gcc
+AR = m68k-amigaos-ar
+RM = rm -f
+
+DEBUG = 0
+LIBRARY = libdl.a
+
+CFLAGS = -Wall -I. -noixemul 
+#-std=gnu89 -pedantic
+LDFLAGS = -L. -ldl -noixemul
+
+ifneq ($(DEBUG), 0)
+CFLAGS += -g -DDEBUG
+else
+CFLAGS += -Os
+endif
+
+LIB_OBJ = \
+	main.o \
+	dlfcn.o
+
+all: $(LIBRARY) testlib.so testprog
+
+$(LIBRARY): $(LIB_OBJ)
+	$(AR) rcs $@ $?
+
+testlib.so: testlib.o $(LIBRARY)
+	$(CC) -o $@ $< $(LDFLAGS)
+
+testprog: testprog.o $(LIBRARY)
+	$(CC) -o $@ $< $(LDFLAGS)
+
+clean:
+	$(RM) $(LIBRARY) $(LIB_OBJ) testlib.so testlib.o testprog testprog.o
