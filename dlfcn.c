@@ -33,19 +33,19 @@ SOFTWARE.
 
 static BOOL errorClear = TRUE;
 static char *errorString;
-static struct MinList sobjs = {(struct MinNode *)&sobjs.mlh_Tail, NULL, (struct MinNode *)&sobjs.mlh_Head};
+static struct List sobjs = {(struct Node *)&sobjs.lh_Tail, NULL, (struct Node *)&sobjs.lh_Head, 0, 0};
 
 typedef struct
 {
-	struct MinNode node;
+	struct Node node;
 	void *address;
-	char name[1]; // variable length
+	//char name[1]; // variable length
 } soexport_t;
 
 typedef struct
 {
-	struct MinNode node;
-	struct MinList exports;
+	struct Node node;
+	struct List exports;
 	struct Process *proc;
 	//char name[1]; // variable length
 } soinstance_t;
@@ -70,9 +70,10 @@ static soexport_t *SOAddExport(soinstance_t *instance, void *address, /*const*/ 
 	if (!export)
 		return NULL;
 	export->address = address;
-	CopyMem(name, export->name, namelen);
-	export->name[namelen] = '\0';
-	AddTail((struct List *)&instance->exports, (struct Node *)export);
+	export->node.ln_Name = (char *)(export + 1);
+	CopyMem(name, export->node.ln_Name, namelen);
+	export->node.ln_Name[namelen] = '\0';
+	AddTail(&instance->exports, (struct Node *)export);
 
 	return export;
 }
@@ -80,7 +81,7 @@ static soexport_t *SOAddExport(soinstance_t *instance, void *address, /*const*/ 
 static void SORemoveExports(soinstance_t *instance)
 {
 	soexport_t *export;
-	while ((export = (soexport_t *)RemHead((struct List *)&instance->exports)))
+	while ((export = (soexport_t *)RemHead(&instance->exports)))
 	{
 		FreeVec(export);
 	}
@@ -89,12 +90,9 @@ static void SORemoveExports(soinstance_t *instance)
 static void *SOResolveSymbol(soinstance_t *instance, const char *name)
 {
 	soexport_t *export;
-	for (export = (soexport_t *)instance->exports.mlh_TailPred; export->node.mln_Pred; export = (soexport_t *)export->node.mln_Pred)
+	if ((export = (soexport_t *)FindName(&instance->exports, (const STRPTR)name)))
 	{
-		char *s1, *s2;
-		for (s1 = (char *)name, s2 = export->name; *s1 && *s1 == *s2; s1++, s2++);
-		if (*s1 == '\0')
-			return export->address;
+		return export->address;
 	}
 	return NULL;
 }
@@ -287,6 +285,7 @@ static soinstance_t *SOAddInstance(BPTR fh, struct Process *proc)
 		SOSetError("can't allocate the instance memory");
 		return NULL;
 	}
+	NewList(&instance->exports);
 	if (SOParseHunks(fh, instance, seglist))
 	{
 		FreeVec(instance);
@@ -294,7 +293,7 @@ static soinstance_t *SOAddInstance(BPTR fh, struct Process *proc)
 		return NULL;
 	}
 	instance->proc = proc;
-	AddTail((struct List *)&sobjs, (struct Node *)instance);
+	AddTail(&sobjs, (struct Node *)instance);
 
 	return instance;
 }
@@ -310,7 +309,7 @@ static void SORemoveInstance(soinstance_t *instance)
 static void SORemoveInstances(void)
 {
 	soinstance_t *instance;
-	while ((instance = (soinstance_t *)RemHead((struct List *)&sobjs)))
+	while ((instance = (soinstance_t *)RemHead(&sobjs)))
 	{
 		SORemoveInstance(instance);
 	}
