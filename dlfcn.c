@@ -285,7 +285,9 @@ static soinstance_t *SOAddInstance(BPTR fh, struct Process *proc)
 		SOSetError("can't allocate the instance memory");
 		return NULL;
 	}
-	NewList(&instance->exports);
+	//NewList(&instance->exports);
+	instance->exports.lh_Head = (struct Node *)&instance->exports.lh_Tail;
+	instance->exports.lh_TailPred = (struct Node *)&instance->exports.lh_Head;
 	if (SOParseHunks(fh, instance, seglist))
 	{
 		FreeVec(instance);
@@ -525,7 +527,7 @@ int dlclose(void *handle)
 		if (!IsProcessRunning(proc))
 			break;
 		Delay(10);
-	} while (!IsProcessRunning(proc) && retries++ < FINDPROCESS_TRIES);
+	} while (IsProcessRunning(proc) && retries++ < FINDPROCESS_TRIES);
 	if (retries >= FINDPROCESS_TRIES)
 	{
 		SOSetError("the process didn't respond to the CTRL-C signal");
